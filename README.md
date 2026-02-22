@@ -1,228 +1,265 @@
 
-# TDSERAG — RAG (sobre 1 artículo) con LangChain
+# TDSERAG — Implementación Completa de RAG con LangChain
 
-Este repo es un **notebook educativo** que arma un flujo RAG completo (indexing + retrieval + generación) y lo aplica a **un solo texto fuente**.
+Este proyecto implementa paso a paso un sistema **RAG (Retrieval-Augmented Generation)** utilizando LangChain y múltiples proveedores de modelos (Ollama, OpenAI, Anthropic y Gemini).
 
-Por defecto el texto que se indexa es el post de Lilian Weng:
-https://lilianweng.github.io/posts/2023-06-23-agent/
-
-La implementación principal está en **RAG.ipynb**.
+El notebook muestra la evolución desde un pipeline básico de indexación hasta un **RAG Agent con memoria conversacional**, permitiendo entender tanto la arquitectura clásica como una arquitectura más avanzada basada en agentes.
 
 ---
 
-## Qué hace exactamente
+# ¿Qué es RAG?
 
-El notebook sigue el pipeline clásico:
+**Retrieval-Augmented Generation (RAG)** es un patrón que combina:
 
-1) **Indexing**
-	- Cargar HTML desde una URL
-	- Limpiar/filtrar contenido relevante (título/headers/cuerpo)
-	- Partir en chunks (con overlap)
-	- Embeddings
-	- Guardar en un vector store en memoria
+1. **Recuperación de información (Retrieval)** desde una base de conocimiento.
+2. **Generación de texto (LLM)** utilizando el contexto recuperado.
 
-2) **Retrieval + Generation (RAG chain)**
-	- Busca los top-k chunks relevantes
-	- Hace **una llamada** al LLM con (pregunta + contexto)
+Flujo general:
 
-3) **RAG agent (con tool de retrieval)**
-	- Expone una tool `retrieve_context` para que el agente decida cuándo recuperar contexto
-	- Incluye un **fallback** si:
-	  - no corriste la celda que inicializa el agente, o
-	  - tu modelo (por ejemplo en Ollama) no soporta tool calling
-
-Importante: en todos los modos, la instrucción es **responder usando el contexto recuperado**. Si la respuesta no está en el artículo, lo correcto es que responda tipo *“no sé / no está en el contexto”*.
-
----
-
-## Estructura
-
-- `RAG.ipynb`: notebook principal
-- `requirements.txt`: dependencias Python
-- `apikey.env`: configuración local (provider/model/URL)
-- `README.md`: esta guía
-
----
-
-## Requisitos
-
-### 1) Python
-
-- Windows
-- Python 3.10+ (recomendado 3.11)
-
-### 2) Ollama (para correr todo local)
-
-Si usas `LLM_PROVIDER=ollama` (por defecto), necesitas **dos cosas**:
-
-1) La app/servicio de Ollama instalado (esto es lo que levanta `http://localhost:11434`).
-2) Los modelos descargados (chat + embeddings).
-
-Ojo: `pip install ollama` **no reemplaza** instalar Ollama Desktop. El paquete de Python es para cliente, pero el server tiene que estar corriendo.
-
-Descarga: https://ollama.com/download
-
----
-
-## Setup rápido (Windows + PowerShell)
-
-### 1) Crear y activar venv
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+```
+Pregunta → Retriever → Contexto relevante → LLM → Respuesta fundamentada
 ```
 
-### 2) Instalar dependencias
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-### 3) Instalar/arrancar Ollama
-
-1) Instala la app de Ollama.
-2) Asegúrate de que el servicio está arriba.
-
-Comandos útiles:
-
-```powershell
-ollama --version
-ollama serve
-```
-
-Tip: `ollama serve` se queda “corriendo” (no termina). Si lo ejecutas así, déjalo en una terminal y usa otra para seguir con VS Code/Jupyter.
-
-Si `ollama` no aparece en tu PATH, puedes llamarlo por ruta (común en Windows):
-
-```powershell
-$ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
-& $ollama --version
-& $ollama serve
-```
-
-### 4) Descargar modelos (chat + embeddings)
-
-En PowerShell:
-
-```powershell
-ollama pull llama3
-ollama pull nomic-embed-text
-ollama list
-```
-
-Notas:
-- El notebook usa tags tipo `llama3:latest` (lo que te salga en `ollama list`).
-- Si estás en Git Bash/WSL y te da `command not found`, corre estos comandos desde **PowerShell**.
+El modelo no responde únicamente con su conocimiento interno, sino apoyándose en información externa previamente indexada.
 
 ---
 
-## Configuración (apikey.env)
+# Estructura del Notebook
 
-El notebook carga variables desde `.env` si existe, y además carga `apikey.env` si existe (en este repo lo estamos usando como archivo principal de config).
+El notebook está dividido en las siguientes secciones:
 
-Si vas a poner API keys reales acá: **no las subas al repo**. Lo normal es:
+---
 
-- Tener `apikey.env` local y agregarlo al `.gitignore`.
-- O usar variables de entorno del sistema.
+## 0️ Instalación de dependencias
 
-Variables más importantes:
+Se instalan las librerías necesarias para:
 
-- `LLM_PROVIDER`: `ollama` | `anthropic` | `openai` | `gemini`
-- `LLM_MODEL`:
-  - Ollama: el nombre exacto de `ollama list` (ej: `llama3:latest`)
-- `OLLAMA_EMBED_MODEL`: ej `nomic-embed-text`
-- `SOURCE_URL`: URL a indexar (por defecto el post de Lilian Weng)
-- `TOP_K`: cuántos chunks recuperar (ej 4)
-- `CHUNK_SIZE` / `CHUNK_OVERLAP`: chunking
+* Construcción de RAG con LangChain
+* Uso de múltiples proveedores de LLM
+* Procesamiento de texto
+* Manejo de memoria con LangGraph
 
-Ejemplo (modo 100% local):
+Incluye soporte para:
 
-```env
-LLM_PROVIDER=ollama
-LLM_MODEL=llama3:latest
-OLLAMA_EMBED_MODEL=nomic-embed-text
-SOURCE_URL=https://lilianweng.github.io/posts/2023-06-23-agent/
-TOP_K=4
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
+* langchain
+* langchain-community
+* langgraph
+* langchain-openai
+* langchain-ollama
+* langchain-anthropic
+* langchain-google-genai
+* python-dotenv
+* beautifulsoup4
+
+---
+
+## 1️ Configuración del entorno
+
+Se cargan variables desde `.env` o `apikey.env`.
+
+Variables principales:
+
+| Variable          | Descripción                                              |
+| ----------------- | -------------------------------------------------------- |
+| `LLM_PROVIDER`    | Proveedor del modelo (ollama, openai, anthropic, gemini) |
+| `LLM_MODEL`       | Nombre del modelo a usar                                 |
+| `LLM_TEMPERATURE` | Temperatura del modelo                                   |
+| `SOURCE_URL`      | URL que se va a indexar                                  |
+| `CHUNK_SIZE`      | Tamaño de fragmentos                                     |
+| `CHUNK_OVERLAP`   | Superposición entre fragmentos                           |
+| `TOP_K`           | Número de documentos recuperados                         |
+
+Incluye validaciones y protección de claves sensibles.
+
+---
+
+## 2️ Inicialización del modelo y embeddings
+
+Según el proveedor configurado:
+
+* Se instancia el modelo de chat.
+* Se instancia el modelo de embeddings.
+* Se valida que el modelo de embeddings funcione correctamente.
+
+Soporta ejecución local con Ollama o proveedores en la nube.
+
+---
+
+## 3️ Indexación — Carga de documentos
+
+Se utiliza un loader web para:
+
+* Extraer contenido desde una URL.
+* Filtrar únicamente contenido relevante (títulos, headers, contenido principal).
+* Preparar el texto para procesamiento posterior.
+
+---
+
+## 4 Indexación — Chunking
+
+El texto se divide usando un splitter recursivo que:
+
+* Mantiene coherencia semántica.
+* Controla tamaño de fragmento.
+* Aplica overlap para evitar pérdida de contexto.
+
+Esto optimiza la calidad del retrieval.
+
+---
+
+## Vector Store en memoria
+
+Se genera el flujo:
+
+```
+Chunks → Embeddings → Vector Store
 ```
 
-Si cambias a Anthropic/OpenAI/Gemini, además necesitas la API key correspondiente:
-
-- Anthropic: `ANTHROPIC_API_KEY=...`
-- OpenAI: `OPENAI_API_KEY=...`
-- Gemini: `GOOGLE_API_KEY=...`
+Los embeddings se almacenan en memoria para realizar búsquedas semánticas rápidas.
 
 ---
 
-## Cómo correr el notebook (orden recomendado)
+# RAG Chain (Implementación Clásica)
 
-Abre `RAG.ipynb` en VS Code (Jupyter) y ejecuta las celdas en este orden:
+Se construye un pipeline RAG tradicional:
 
-1) **Instalación** (solo la primera vez por kernel)
-2) **Config** (carga `apikey.env`)
-3) **Init** (modelo de chat + embeddings)
-4) **Preflight embeddings** (valida que Ollama responde)
-5) **Indexing**: loader → split → vector store
-6) **RAG chain** (pregunta y responde con contexto)
-7) **RAG agent** (tool + memoria) + celda de ejecución
+1. El usuario hace una pregunta.
+2. El retriever obtiene los documentos más relevantes.
+3. Se construye un prompt con el contexto.
+4. Se realiza una única llamada al LLM.
+5. Se devuelve la respuesta final.
 
-Tip: si corres la última celda sin haber creado `vector_store`/`model`, el notebook te va a decir qué sección te falta correr.
+Ventajas:
 
----
-
-## “Que lo que pregunte sea afín al texto”
-
-La idea aquí es simple:
-
-- El sistema siempre intenta responder **solo usando contexto recuperado del artículo**.
-- Si preguntas algo que **no está** en el post, lo esperado es que te responda *“no sé / no está en el contexto recuperado”*.
-
-Si quieres resultados más “estrictos” (rechazar preguntas fuera del tema en vez de intentar responder), el punto donde se ajusta es el prompt del sistema y/o una validación previa del retrieval (antes de llamar al LLM).
+* Flujo simple
+* Bajo costo
+* Determinístico
+* Fácil de debuggear
 
 ---
 
-## Troubleshooting (lo típico)
+# RAG Agent con Tool y Memoria
 
-### 1) “No pude usar Ollama para embeddings”
+Se implementa una versión más avanzada basada en agentes.
 
-Checklist:
+## 🔧 Tool personalizada
 
-- Ollama instalado y corriendo (`ollama serve`)
-- Modelo de embeddings descargado:
+Se define una tool de recuperación que el agente puede invocar cuando lo considere necesario.
 
-```powershell
-ollama pull nomic-embed-text
-ollama list
+A diferencia del RAG chain, el agente:
+
+* Decide si necesita contexto.
+* Puede llamar la herramienta múltiples veces.
+* Realiza razonamiento intermedio.
+
+---
+
+##  Memoria Conversacional
+
+Se incorpora memoria usando un sistema de almacenamiento en memoria con identificador de sesión (`thread_id`).
+
+Esto permite:
+
+* Mantener contexto entre mensajes.
+* Simular conversaciones persistentes.
+* Manejar múltiples sesiones independientes.
+
+---
+
+#  RAG Chain vs RAG Agent
+
+| Característica        | RAG Chain | RAG Agent |
+| --------------------- | --------- | --------- |
+| Llamadas al LLM       | 1         | Variable  |
+| Decisión de retrieval | Fija      | Dinámica  |
+| Memoria               | No        | Sí        |
+| Complejidad           | Baja      | Media     |
+| Costo                 | Bajo      | Mayor     |
+
+---
+
+#  Flujo Completo del Sistema
+
+```
+1. Cargar configuración
+2. Inicializar modelo y embeddings
+3. Cargar documentos desde web
+4. Dividir en chunks
+5. Crear embeddings
+6. Guardar en vector store
+7. Crear retriever
+8. Construir RAG chain
+9. Construir RAG agent
+10. Ejecutar consultas
 ```
 
-### 2) `ollama pull ...` falla en Git Bash/WSL
+---
 
-Usa PowerShell. En Windows, a veces `ollama` solo está disponible como `.exe` en `%LOCALAPPDATA%`.
+#  Objetivo del Proyecto
 
-### 3) El agent revienta con “does not support tools”
+Este notebook está diseñado para:
 
-Eso pasa con algunos modelos de Ollama: el modo agent usa tool calling.
-
-Soluciones:
-
-- Dejar que el notebook use el **fallback** (retrieval explícito + 1 llamada al LLM), o
-- Cambiar a un modelo que sí soporte tools, o
-- Usar Anthropic/OpenAI para el chat model.
-
-### 4) Respuestas “I don't know” aunque la info sí está
-
-Prueba:
-
-- Subir `TOP_K` (por ejemplo 6 u 8)
-- Ajustar `CHUNK_SIZE`/`CHUNK_OVERLAP`
-- Ver qué está devolviendo el retriever (hay una celda que imprime chunks)
+* Entender RAG desde cero.
+* Implementar retrieval real.
+* Comparar arquitecturas (chain vs agent).
+* Aprender manejo de memoria conversacional.
+* Construir una base sólida para sistemas productivos.
 
 ---
 
-## Notas
+#  Cómo Ejecutarlo
 
-- Este repo es para aprender el flujo. El vector store es en memoria (no persiste).
-- Si activas LangSmith (`LANGSMITH_TRACING=true`) puedes ver trazas, pero no es necesario.
+1. Crear archivo `.env` con las variables necesarias.
+2. Instalar dependencias.
+3. Ejecutar el notebook en orden.
+4. Probar consultas tanto en:
+
+   * RAG Chain
+   * RAG Agent
+
+---
+
+# Posibles Extensiones
+
+* Persistencia con FAISS o Chroma
+* Ingesta de múltiples documentos
+* RAG híbrido (BM25 + embeddings)
+* Evaluación automática (RAGAS)
+* Streaming de respuestas
+* Agentes con múltiples tools
+
+---
+
+# Conceptos Cubiertos
+
+* Embeddings
+* Vector stores
+* Chunking estratégico
+* Retrieval top-k
+* Prompt engineering para RAG
+* Tool calling
+* Arquitectura de agentes
+* Memoria conversacional
+* Soporte multi-proveedor de LLM
+
+---
+
+#  Conclusión
+
+Este proyecto implementa un sistema RAG completo que evoluciona desde:
+
+```
+Indexación básica
+     ↓
+RAG Chain
+     ↓
+RAG Agent con memoria
+```
+
+Sirve como base para construir:
+
+* Chatbots con conocimiento externo
+* Asistentes técnicos
+* Sistemas de preguntas y respuestas empresariales
+* Agentes inteligentes con herramientas
 
